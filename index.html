@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Quiz SD Digital</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body { font-family: Arial; background:#eef2f7; margin:0; padding:10px; }
+.container { max-width:700px; margin:auto; background:white; padding:15px; border-radius:10px; }
+h2 { text-align:center; }
+input, select, button {
+  width:100%; padding:10px; margin:8px 0;
+  font-size:16px;
+}
+button { background:#1e88e5; color:white; border:none; border-radius:6px; }
+button:hover { background:#1565c0; }
+.soal { margin:15px 0; }
+.timer { font-size:18px; color:red; text-align:center; font-weight:bold; }
+.hasil { text-align:center; font-size:20px; color:green; font-weight:bold; }
+@media (max-width:600px){
+  h2 { font-size:20px; }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h2>📘 Quiz Digital SD</h2>
+
+<div id="login">
+  <input id="nama" placeholder="Nama Murid">
+  <input id="lembaga" placeholder="Asal Lembaga">
+  <select id="mapel">
+    <option value="">Pilih Mata Pelajaran</option>
+    <option value="mtk">Matematika</option>
+    <option value="indo">Bahasa Indonesia</option>
+  </select>
+  <select id="paket"></select>
+  <button onclick="mulai()">Mulai Quiz</button>
+</div>
+
+<div class="timer" id="timer"></div>
+<div id="soalArea"></div>
+<div class="hasil" id="hasil"></div>
+
+<button id="download" onclick="downloadCSV()" style="display:none">
+⬇ Download Rekap Nilai (Excel)
+</button>
+
+</div>
+
+<script>
+// ================= BANK SOAL =================
+const BANK_SOAL = {
+  mtk:{
+    1:[
+      {t:"6 + 4 = ...", p:["8","9","10","11"], j:2},
+      {t:"5 x 3 = ...", p:["10","15","20","25"], j:1},
+      {t:"12 : 4 = ...", p:["2","3","4","5"], j:1}
+    ]
+  },
+  indo:{
+    1:[
+      {t:"Antonim kata 'besar' adalah ...", p:["luas","kecil","panjang","tinggi"], j:1},
+      {t:"Kalimat perintah diakhiri tanda ...", p:[".","?","!",";"], j:2}
+    ]
+  }
+};
+// =============================================
+
+let dataRekap = [];
+let waktu = 600; // 10 menit
+let timerInterval;
+
+function mulai(){
+  const mapel = document.getElementById("mapel").value;
+  const paket = document.getElementById("paket").value;
+  if(!BANK_SOAL[mapel] || !BANK_SOAL[mapel][paket]){
+    alert("Soal belum tersedia");
+    return;
+  }
+
+  document.getElementById("login").style.display="none";
+  tampilkanSoal(mapel, paket);
+  mulaiTimer();
+}
+
+function tampilkanSoal(mapel, paket){
+  const area = document.getElementById("soalArea");
+  area.innerHTML="";
+  const soal = shuffle([...BANK_SOAL[mapel][paket]]);
+
+  soal.forEach((s,i)=>{
+    const opsi = shuffle([...s.p]);
+    area.innerHTML += `
+      <div class="soal">
+        <p>${i+1}. ${s.t}</p>
+        ${opsi.map(o=>`
+          <label><input type="radio" name="s${i}" value="${o}"> ${o}</label><br>
+        `).join("")}
+      </div>`;
+    s.opsi = opsi;
+  });
+
+  area.innerHTML += `<button onclick="selesai()">Selesai</button>`;
+  window.soalAktif = soal;
+}
+
+function mulaiTimer(){
+  timerInterval = setInterval(()=>{
+    waktu--;
+    document.getElementById("timer").innerText =
+      "Sisa Waktu: " + Math.floor(waktu/60) + ":" + (waktu%60).toString().padStart(2,"0");
+    if(waktu<=0){
+      clearInterval(timerInterval);
+      selesai();
+    }
+  },1000);
+}
+
+function selesai(){
+  clearInterval(timerInterval);
+  let benar = 0;
+  soalAktif.forEach((s,i)=>{
+    const jawab = document.querySelector(`input[name="s${i}"]:checked`);
+    if(jawab && s.opsi.indexOf(jawab.value) === s.j) benar++;
+  });
+
+  const nilai = Math.round((benar/soalAktif.length)*100);
+  document.getElementById("hasil").innerText = "Nilai Anda: " + nilai;
+
+  dataRekap.push({
+    nama:nama.value,
+    lembaga:lembaga.value,
+    mapel:mapel.value,
+    paket:paket.value,
+    nilai:nilai
+  });
+
+  document.getElementById("download").style.display="block";
+}
+
+function downloadCSV(){
+  let csv = "Nama,Lembaga,Mapel,Paket,Nilai\n";
+  dataRekap.forEach(d=>{
+    csv += `${d.nama},${d.lembaga},${d.mapel},${d.paket},${d.nilai}\n`;
+  });
+  const blob = new Blob([csv], {type:"text/csv"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "rekap_nilai.csv";
+  a.click();
+}
+
+function shuffle(arr){
+  return arr.sort(()=>Math.random()-0.5);
+}
+
+for(let i=1;i<=22;i++){
+  paket.innerHTML += `<option value="${i}">Paket ${i}</option>`;
+}
+</script>
+</body>
+</html>
